@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudStack — Hosted on AWS VPC</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #040912;
+    --bg2:      #080f1e;
+    --surface:  #0d1a2e;
+    --border:   #1a2d4a;
+    --glow:     #00c2ff;
+    --glow2:    #00ff9d;
+    --glow3:    #ff6b35;
+    --text:     #c8daf0;
+    --text2:    #7a9bbf;
+    --text3:    #3d5a7a;
+    --white:    #eef4ff;
+    --mono:     'Fira Code', monospace;
+    --display:  'Syne', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── animated grid background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,194,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,194,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── orb glows ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(0,194,255,0.08); top: -100px; right: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(0,255,157,0.06); bottom: 100px; left: -80px; }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 48px;
+    background: rgba(4,9,18,0.8);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--glow);
+    box-shadow: 0 0 12px var(--glow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--text2);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--glow); }
+  .nav-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--glow2);
+    border: 1px solid rgba(0,255,157,0.3);
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(0,255,157,0.05);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 32px 80px;
+  }
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--glow);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: '';
+    width: 40px;
+    height: 1px;
+    background: var(--glow);
+    opacity: 0.5;
+  }
+  .hero h1 {
+    font-size: clamp(44px, 8vw, 96px);
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    color: var(--white);
+    margin-bottom: 8px;
+    animation: fadeUp 0.8s ease both;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--glow), var(--glow2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: clamp(16px, 2.5vw, 22px);
+    color: var(--text2);
+    max-width: 580px;
+    line-height: 1.6;
+    margin: 24px auto 48px;
+    font-weight: 400;
+    animation: fadeUp 0.8s 0.15s ease both;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: fadeUp 0.8s 0.3s ease both;
+  }
+  .btn {
+    padding: 14px 32px;
+    border-radius: 4px;
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-block;
+  }
+  .btn-primary {
+    background: var(--glow);
+    color: var(--bg);
+    box-shadow: 0 0 24px rgba(0,194,255,0.3);
+  }
+  .btn-primary:hover {
+    background: #33d0ff;
+    box-shadow: 0 0 40px rgba(0,194,255,0.5);
+    transform: translateY(-2px);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    border-color: var(--glow);
+    color: var(--glow);
+    transform: translateY(-2px);
+  }
+
+  /* ── server info strip ── */
+  .server-strip {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 48px;
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    flex-wrap: wrap;
+    overflow: hidden;
+  }
+  .server-strip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glow), transparent);
+    opacity: 0.4;
+  }
+  .server-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .server-item-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--glow2);
+    box-shadow: 0 0 8px var(--glow2);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .server-item-label { color: var(--text3); }
+  .server-item-value { color: var(--glow2); font-weight: 500; }
+
+  /* ── FEATURES ── */
+  .section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 32px;
+  }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--glow);
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-desc {
+    color: var(--text2);
+    font-size: 16px;
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 60px;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2px;
+  }
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.3s;
+    cursor: default;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 2px;
+    background: linear-gradient(90deg, var(--glow), var(--glow2));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+  }
+  .feature-card:hover { border-color: rgba(0,194,255,0.3); transform: translateY(-4px); }
+  .feature-card:hover::before { transform: scaleX(1); }
+  .feature-icon {
+    font-size: 28px;
+    margin-bottom: 20px;
+    display: block;
+  }
+  .feature-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .feature-desc {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.7;
+  }
+  .feature-tag {
+    display: inline-block;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    background: rgba(0,194,255,0.08);
+    border: 1px solid rgba(0,194,255,0.2);
+    color: var(--glow);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── STATS ── */
+  .stats-row {
+    position: relative;
+    z-index: 1;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stats-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 40px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 52px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--glow), var(--glow2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-label {
+    font-size: 13px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+
+  /* ── TERMINAL BLOCK ── */
+  .terminal-section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px 100px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .terminal {
+    background: #010711;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,194,255,0.06);
+  }
+  .terminal-bar {
+    background: #0a1628;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .t-red { background: #ff5f57; }
+  .t-yellow { background: #febc2e; }
+  .t-green { background: #28c840; }
+  .terminal-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .terminal-body {
+    padding: 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+  }
+  .t-prompt { color: var(--glow2); }
+  .t-cmd { color: var(--white); }
+  .t-out { color: var(--text2); }
+  .t-val { color: var(--glow); }
+  .t-ok  { color: var(--glow2); }
+  .t-cursor {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: var(--glow);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+  .terminal-info h3 {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .terminal-info p {
+    font-size: 15px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+  .check-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .check-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .check-list li::before {
+    content: '→';
+    color: var(--glow);
+    font-family: var(--mono);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 1;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    text-align: center;
+    padding: 40px 32px;
+  }
+  .footer-logo {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+  .footer-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text3);
+    line-height: 2;
+  }
+  .footer-text span { color: var(--glow2); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    .nav-links { display: none; }
+    .server-strip { gap: 20px; padding: 14px 20px; }
+    .terminal-section { grid-template-columns: 1fr; }
+    .terminal-info { order: -1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-dot"></div>
+    CloudStack
+  </div>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <div class="nav-badge">● Live on AWS</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">Hosted on AWS VPC · Private Subnet · Auto Scaling</div>
+  <h1>Built for<br><span>the Cloud</span></h1>
+  <p class="hero-sub">
+    A production-grade web application running inside a private AWS VPC — load balanced, auto scaled, and highly available across two availability zones.
+  </p>
+  <div class="hero-actions">
+    <a href="#features" class="btn btn-primary">Explore Architecture</a>
+    <a href="#contact" class="btn btn-ghost">Get in Touch</a>
+  </div>
+</section>
+
+<!-- SERVER INFO STRIP -->
+<div class="server-strip">
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Region:</span>
+    <span class="server-item-value">us-east-1</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Availability Zones:</span>
+    <span class="server-item-value">AZ-A · AZ-B</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Load Balancer:</span>
+    <span class="server-item-value">Application (ALB)</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Subnet:</span>
+    <span class="server-item-value">Private · 10.0.2.0/24</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Status:</span>
+    <span class="server-item-value">Healthy ✓</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-label">// infrastructure</div>
+  <h2 class="section-title">Enterprise-grade AWS setup</h2>
+  <p class="section-desc">Every component is designed for reliability, security, and scale — the same architecture used by production teams worldwide.</p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <span class="feature-icon">🔒</span>
+      <div class="feature-title">Private Subnet Isolation</div>
+      <div class="feature-desc">EC2 instances live in private subnets with no direct internet access. All inbound traffic routes exclusively through the Application Load Balancer.</div>
+      <span class="feature-tag">Security</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">⚖️</span>
+      <div class="feature-title">Application Load Balancer</div>
+      <div class="feature-desc">HTTP/HTTPS traffic is distributed evenly across instances in both availability zones with built-in health checks and automatic failover.</div>
+      <span class="feature-tag">High Availability</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📈</span>
+      <div class="feature-title">Auto Scaling Group</div>
+      <div class="feature-desc">Instances scale out when CPU exceeds 70% and scale in during low traffic — ensuring performance without over-provisioning.</div>
+      <span class="feature-tag">Elasticity</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🌐</span>
+      <div class="feature-title">NAT Gateway</div>
+      <div class="feature-desc">Private instances reach the internet for updates and AWS API calls via NAT Gateways — one per AZ to eliminate cross-AZ charges.</div>
+      <span class="feature-tag">Networking</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🔁</span>
+      <div class="feature-title">Multi-AZ Redundancy</div>
+      <div class="feature-desc">Resources span two availability zones. If one data centre experiences an issue, traffic seamlessly routes to the healthy AZ within seconds.</div>
+      <span class="feature-tag">Fault Tolerance</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🚀</span>
+      <div class="feature-title">Launch Templates</div>
+      <div class="feature-desc">Every new instance boots with the same configuration — AMI, security groups, and user data — ensuring consistency at any scale.</div>
+      <span class="feature-tag">Automation</span>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stats-inner">
+    <div>
+      <div class="stat-num">2</div>
+      <div class="stat-label">Availability Zones</div>
+    </div>
+    <div>
+      <div class="stat-num">4</div>
+      <div class="stat-label">Subnets (2 pub + 2 priv)</div>
+    </div>
+    <div>
+      <div class="stat-num">99.9<small style="font-size:28px">%</small></div>
+      <div class="stat-label">Uptime SLA</div>
+    </div>
+    <div>
+      <div class="stat-num">6</div>
+      <div class="stat-label">Max EC2 Instances</div>
+    </div>
+  </div>
+</div>
+
+<!-- TERMINAL -->
+<section class="terminal-section" id="architecture">
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="t-dot t-red"></div>
+      <div class="t-dot t-yellow"></div>
+      <div class="t-dot t-green"></div>
+      <div class="terminal-title">ec2-instance — bash</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-prompt">ec2-user@ip-10-0-2-44:~$</span> <span class="t-cmd">curl http://169.254.169.254/latest/meta-data/placement/availability-zone</span></div>
+      <div class="t-val">us-east-1a</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-2-44:~$</span> <span class="t-cmd">curl http://169.254.169.254/latest/meta-data/local-ipv4</span></div>
+      <div class="t-val">10.0.2.44</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-2-44:~$</span> <span class="t-cmd">systemctl status httpd</span></div>
+      <div class="t-out">● httpd.service - The Apache HTTP Server</div>
+      <div class="t-ok">   Active: active (running) since today</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-2-44:~$</span> <span class="t-cursor"></span></div>
+    </div>
+  </div>
+  <div class="terminal-info">
+    <h3>Running inside a private subnet</h3>
+    <p>This page is served by an EC2 instance with IP <code style="font-family:var(--mono);color:var(--glow);font-size:13px">10.0.2.x</code> — not reachable from the internet directly. You're here because the ALB routed your request.</p>
+    <ul class="check-list">
+      <li>No public IP on this instance</li>
+      <li>Security group only allows traffic from ALB</li>
+      <li>Outbound traffic via NAT Gateway</li>
+      <li>Auto Scaling keeps minimum 2 instances live</li>
+      <li>Health check endpoint at <code style="font-family:var(--mono);color:var(--glow);font-size:12px">/health</code></li>
+    </ul>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="contact">
+  <div class="footer-logo">CloudStack</div>
+  <div class="footer-text">
+    Hosted on <span>AWS EC2</span> · Private Subnet <span>10.0.2.0/24</span> · Region <span>us-east-1</span><br>
+    Served via <span>Application Load Balancer</span> · Managed by <span>Auto Scaling Group</span><br><br>
+    Built as a portfolio project · AWS VPC Architecture Demo
+  </div>
+</footer>
+
+</body>
+</html>

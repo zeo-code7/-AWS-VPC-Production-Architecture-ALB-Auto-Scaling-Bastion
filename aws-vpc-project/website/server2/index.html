@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudStack — Server 2 · AZ-B</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #030d08;
+    --bg2:     #061209;
+    --surface: #0a1f0f;
+    --border:  #143320;
+    --glow:    #00ff9d;
+    --glow2:   #00c26e;
+    --glow3:   #a8ff78;
+    --text:    #c0e8ce;
+    --text2:   #6a9b7a;
+    --text3:   #2d5a3d;
+    --white:   #edfff4;
+    --mono:    'Fira Code', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,157,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,157,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(0,255,157,0.07); top: -100px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(0,194,80,0.05);  bottom: 100px; right: -80px; }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 48px;
+    background: rgba(3,13,8,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .server-pill {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--glow);
+    padding: 4px 14px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    box-shadow: 0 0 20px rgba(0,255,157,0.4);
+  }
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--text2);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--glow); }
+  .nav-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--glow);
+    border: 1px solid rgba(0,255,157,0.35);
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(0,255,157,0.06);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 32px 80px;
+  }
+
+  /* big server badge */
+  .server-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(0,255,157,0.06);
+    border: 1px solid rgba(0,255,157,0.25);
+    border-radius: 4px;
+    padding: 12px 28px;
+    margin-bottom: 36px;
+    animation: fadeUp 0.6s ease both;
+  }
+  .server-badge-num {
+    font-family: var(--mono);
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--glow);
+    line-height: 1;
+    text-shadow: 0 0 30px rgba(0,255,157,0.5);
+  }
+  .server-badge-info {
+    text-align: left;
+  }
+  .server-badge-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+  .server-badge-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.01em;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--glow);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: '';
+    width: 40px; height: 1px;
+    background: var(--glow);
+    opacity: 0.4;
+  }
+
+  .hero h1 {
+    font-size: clamp(44px, 8vw, 96px);
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    color: var(--white);
+    margin-bottom: 8px;
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--glow), var(--glow3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: clamp(16px, 2.5vw, 20px);
+    color: var(--text2);
+    max-width: 560px;
+    line-height: 1.65;
+    margin: 24px auto 48px;
+    font-weight: 400;
+    animation: fadeUp 0.7s 0.25s ease both;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: fadeUp 0.7s 0.35s ease both;
+  }
+  .btn {
+    padding: 14px 32px;
+    border-radius: 4px;
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-block;
+  }
+  .btn-primary {
+    background: var(--glow);
+    color: var(--bg);
+    box-shadow: 0 0 28px rgba(0,255,157,0.35);
+  }
+  .btn-primary:hover {
+    background: #33ffb5;
+    box-shadow: 0 0 48px rgba(0,255,157,0.55);
+    transform: translateY(-2px);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    border-color: var(--glow);
+    color: var(--glow);
+    transform: translateY(-2px);
+  }
+
+  /* ── SERVER INFO STRIP ── */
+  .server-strip {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 48px;
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .server-strip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glow), transparent);
+    opacity: 0.35;
+  }
+  .server-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .server-item-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--glow);
+    box-shadow: 0 0 8px var(--glow);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .server-item-label { color: var(--text3); }
+  .server-item-value { color: var(--glow); font-weight: 500; }
+
+  /* ── ALB CHECK SECTION ── */
+  .section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 32px;
+  }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--glow);
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-desc {
+    color: var(--text2);
+    font-size: 16px;
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 52px;
+  }
+
+  /* ── COMPARE CARDS ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .compare-card.active {
+    border-color: rgba(0,255,157,0.4);
+    background: rgba(0,255,157,0.04);
+  }
+  .compare-card.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--glow2), var(--glow));
+  }
+  .compare-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    display: inline-block;
+  }
+  .tag-active { background: rgba(0,255,157,0.12); color: var(--glow); border: 1px solid rgba(0,255,157,0.3); }
+  .tag-other  { background: rgba(255,255,255,0.04); color: var(--text3); border: 1px solid var(--border); }
+  .compare-card h3 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+  .compare-card.active h3 { color: var(--glow); }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { font-family: var(--mono); color: var(--text3); font-size: 12px; }
+  .info-val { font-family: var(--mono); color: var(--text); font-weight: 500; font-size: 12.5px; }
+  .info-val.hi { color: var(--glow); }
+
+  /* ── TERMINAL ── */
+  .terminal-wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px 100px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .terminal {
+    background: #010a04;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,255,157,0.05);
+  }
+  .terminal-bar {
+    background: #061209;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .t-red { background: #ff5f57; } .t-yellow { background: #febc2e; } .t-green { background: #28c840; }
+  .terminal-title { font-family: var(--mono); font-size: 11px; color: var(--text3); margin: 0 auto; }
+  .terminal-body { padding: 24px; font-family: var(--mono); font-size: 13px; line-height: 2; }
+  .t-prompt { color: var(--glow); }
+  .t-cmd    { color: var(--white); }
+  .t-out    { color: var(--text2); }
+  .t-val    { color: var(--glow3); }
+  .t-ok     { color: var(--glow); }
+  .t-cursor {
+    display: inline-block; width: 8px; height: 14px;
+    background: var(--glow); margin-left: 2px; vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+
+  .terminal-info h3 {
+    font-size: 30px; font-weight: 800;
+    color: var(--white); letter-spacing: -0.02em; margin-bottom: 16px;
+  }
+  .terminal-info p { font-size: 15px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+  .check-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .check-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 14px; color: var(--text); line-height: 1.5;
+  }
+  .check-list li::before { content: '→'; color: var(--glow); font-family: var(--mono); flex-shrink: 0; margin-top: 1px; }
+
+  /* ── HOW ALB WORKS ── */
+  .alb-flow {
+    position: relative;
+    z-index: 1;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 70px 32px;
+  }
+  .alb-flow-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .alb-flow h2 { font-size: 32px; font-weight: 800; color: var(--white); margin-bottom: 12px; letter-spacing: -0.02em; }
+  .alb-flow p  { color: var(--text2); font-size: 15px; margin-bottom: 48px; }
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 24px;
+    min-width: 140px;
+    text-align: center;
+  }
+  .flow-step-icon { font-size: 24px; margin-bottom: 8px; }
+  .flow-step-label { font-family: var(--mono); font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+  .flow-step-name  { font-size: 14px; font-weight: 700; color: var(--white); }
+  .flow-step.highlight { border-color: rgba(0,255,157,0.4); background: rgba(0,255,157,0.05); }
+  .flow-step.highlight .flow-step-name { color: var(--glow); }
+  .flow-arrow { font-family: var(--mono); color: var(--text3); font-size: 20px; padding: 0 8px; }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 1;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    text-align: center;
+    padding: 40px 32px;
+  }
+  .footer-logo { font-size: 20px; font-weight: 800; color: var(--white); margin-bottom: 12px; }
+  .footer-text { font-family: var(--mono); font-size: 12px; color: var(--text3); line-height: 2.2; }
+  .footer-text span { color: var(--glow); }
+  .footer-server-badge {
+    display: inline-block;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--glow);
+    padding: 6px 20px;
+    border-radius: 3px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    .nav-links { display: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .terminal-wrap { grid-template-columns: 1fr; }
+    .flow-steps { gap: 8px; }
+    .flow-arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    CloudStack &nbsp;<span class="server-pill">SERVER 2</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#compare">Compare</a></li>
+    <li><a href="#terminal">Details</a></li>
+    <li><a href="#alb">ALB Flow</a></li>
+  </ul>
+  <div class="nav-badge">● AZ-B · Healthy</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="server-badge">
+    <div class="server-badge-num">02</div>
+    <div class="server-badge-info">
+      <div class="server-badge-label">You are on</div>
+      <div class="server-badge-name">Server 2 · AZ-B</div>
+    </div>
+  </div>
+  <div class="hero-eyebrow">Private Subnet · 10.0.3.0/24 · us-east-1b</div>
+  <h1>ALB routed<br>you <span>here</span></h1>
+  <p class="hero-sub">
+    You're seeing this page because the Application Load Balancer selected this instance. Refresh the page — sometimes you'll land on Server 1 instead. That's round-robin in action.
+  </p>
+  <div class="hero-actions">
+    <a href="#compare" class="btn btn-primary">See Server Comparison</a>
+    <a href="#alb" class="btn btn-ghost">How ALB Works</a>
+  </div>
+</section>
+
+<!-- SERVER STRIP -->
+<div class="server-strip">
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Server:</span>
+    <span class="server-item-value">SERVER 2</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">AZ:</span>
+    <span class="server-item-value">us-east-1b</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Private IP:</span>
+    <span class="server-item-value">10.0.3.x</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Subnet:</span>
+    <span class="server-item-value">private-subnet-b</span>
+  </div>
+  <div class="server-item">
+    <div class="server-item-dot"></div>
+    <span class="server-item-label">Health:</span>
+    <span class="server-item-value">✓ Healthy</span>
+  </div>
+</div>
+
+<!-- COMPARE -->
+<section class="section" id="compare">
+  <div class="section-label">// load balancer test</div>
+  <h2 class="section-title">You can tell them apart</h2>
+  <p class="section-desc">Deploy <code style="font-family:'Fira Code';color:var(--glow);font-size:13px">index.html</code> (blue theme) on Server 1 and this file on Server 2. Refresh the ALB URL and watch it alternate.</p>
+
+  <div class="compare-grid">
+    <div class="compare-card">
+      <span class="compare-tag tag-other">Server 1 · AZ-A</span>
+      <h3>index.html</h3>
+      <div class="info-row"><span class="info-key">Theme</span><span class="info-val">Blue · Cyan glow</span></div>
+      <div class="info-row"><span class="info-key">Subnet</span><span class="info-val">private-subnet-a</span></div>
+      <div class="info-row"><span class="info-key">CIDR</span><span class="info-val">10.0.2.0/24</span></div>
+      <div class="info-row"><span class="info-key">AZ</span><span class="info-val">us-east-1a</span></div>
+      <div class="info-row"><span class="info-key">File</span><span class="info-val">index.html</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val">● Healthy</span></div>
+    </div>
+    <div class="compare-card active">
+      <span class="compare-tag tag-active">Server 2 · AZ-B ← You are here</span>
+      <h3>Server 2</h3>
+      <div class="info-row"><span class="info-key">Theme</span><span class="info-val hi">Green · Emerald glow</span></div>
+      <div class="info-row"><span class="info-key">Subnet</span><span class="info-val hi">private-subnet-b</span></div>
+      <div class="info-row"><span class="info-key">CIDR</span><span class="info-val hi">10.0.3.0/24</span></div>
+      <div class="info-row"><span class="info-key">AZ</span><span class="info-val hi">us-east-1b</span></div>
+      <div class="info-row"><span class="info-key">File</span><span class="info-val hi">server2.html</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val hi">● Healthy</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TERMINAL -->
+<section class="terminal-wrap" id="terminal">
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="t-dot t-red"></div>
+      <div class="t-dot t-yellow"></div>
+      <div class="t-dot t-green"></div>
+      <div class="terminal-title">ec2-instance-2 — bash</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-prompt">ec2-user@ip-10-0-3-87:~$</span> <span class="t-cmd">curl http://169.254.169.254/latest/meta-data/placement/availability-zone</span></div>
+      <div class="t-val">us-east-1b</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-3-87:~$</span> <span class="t-cmd">curl http://169.254.169.254/latest/meta-data/local-ipv4</span></div>
+      <div class="t-val">10.0.3.87</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-3-87:~$</span> <span class="t-cmd">curl -s http://169.254.169.254/latest/meta-data/instance-id</span></div>
+      <div class="t-val">i-0b3f9a2c7d1e84f6a</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-3-87:~$</span> <span class="t-cmd">systemctl status httpd | grep Active</span></div>
+      <div class="t-ok">   Active: active (running)</div>
+      <br>
+      <div><span class="t-prompt">ec2-user@ip-10-0-3-87:~$</span> <span class="t-cursor"></span></div>
+    </div>
+  </div>
+  <div class="terminal-info">
+    <h3>This is Server 2</h3>
+    <p>A separate EC2 instance in <strong style="color:var(--glow)">AZ-B (us-east-1b)</strong>, private subnet <code style="font-family:'Fira Code';color:var(--glow);font-size:13px">10.0.3.0/24</code>. The ALB sent you here this time.</p>
+    <ul class="check-list">
+      <li>Same Launch Template as Server 1</li>
+      <li>Different AZ — different physical data centre</li>
+      <li>Both registered in the same Target Group</li>
+      <li>ALB health checks both every 30 seconds</li>
+      <li>If Server 1 fails, all traffic comes here</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ALB FLOW -->
+<div class="alb-flow" id="alb">
+  <div class="alb-flow-inner">
+    <h2>How the ALB chose this server</h2>
+    <p>Every request goes through this path. The ALB picked Server 2 for you this time.</p>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-step-icon">🌐</div>
+        <div class="flow-step-label">Step 1</div>
+        <div class="flow-step-name">Your Browser</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-icon">🔀</div>
+        <div class="flow-step-label">Step 2</div>
+        <div class="flow-step-name">Internet GW</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step highlight">
+        <div class="flow-step-icon">⚖️</div>
+        <div class="flow-step-label">Step 3</div>
+        <div class="flow-step-name">ALB · Round Robin</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step highlight">
+        <div class="flow-step-icon">✅</div>
+        <div class="flow-step-label">Step 4</div>
+        <div class="flow-step-name">Server 2 · AZ-B</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">CloudStack</div>
+  <div class="footer-text">
+    Served by <span>SERVER 2</span> · Private Subnet <span>10.0.3.0/24</span> · AZ <span>us-east-1b</span><br>
+    Routed via <span>Application Load Balancer</span> · Part of <span>Auto Scaling Group</span><br>
+    Refresh the page to see if the ALB sends you to Server 1 instead
+  </div>
+  <div class="footer-server-badge">SERVER 2 · AZ-B</div>
+</footer>
+
+</body>
+</html>

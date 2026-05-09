@@ -1,0 +1,21 @@
+# AWS credentials — NEVER commit these
+*.pem
+*.ppk
+.aws/
+credentials
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Large video files (upload separately or use Git LFS)
+*.mp4
+*.mov
+*.avi
